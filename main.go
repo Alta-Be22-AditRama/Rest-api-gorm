@@ -79,6 +79,10 @@ func main() {
 	e.DELETE("/users/:id", DeleteUserByIdController)
 	e.PUT("/users/:id", UpdateUserController)
 
+	e.GET("/products", GetAllProductsController)
+	e.POST("/products", AddProductController)
+	e.DELETE("/products/:id", DeleteProductController)
+	e.PUT("/products/:id", UpdateProductController)
 	/*
 		TODO:
 		Update user by id
@@ -211,3 +215,117 @@ func UpdateUserController(c echo.Context) error {
 	})
 }
 
+func AddProductController(c echo.Context) error {
+    newProduct := Product{}
+    errBind := c.Bind(&newProduct)
+    if errBind != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error bind data: " + errBind.Error(),
+        })
+    }
+    // Simpan data produk ke DB
+    tx := DB.Create(&newProduct)
+    if tx.Error != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error insert data " + tx.Error.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusCreated, map[string]interface{}{
+        "status":  "success",
+        "message": "success add product",
+    })
+}
+
+func GetAllProductsController(c echo.Context) error {
+    var allProducts []Product
+    tx := DB.Find(&allProducts)
+    if tx.Error != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error read data",
+        })
+    }
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "success read data",
+        "results": allProducts,
+    })
+}
+
+func UpdateProductController(c echo.Context) error {
+    // Ambil ID dari parameter URL
+    id := c.Param("id")
+    idConv, errConv := strconv.Atoi(id)
+    if errConv != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error convert id: " + errConv.Error(),
+        })
+    }
+
+    // Ambil data produk yang akan diperbarui dari body permintaan
+    var updatedProduct Product
+    if err := c.Bind(&updatedProduct); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error bind data: " + err.Error(),
+        })
+    }
+
+    // Cari produk berdasarkan ID
+    var existingProduct Product
+    if err := DB.First(&existingProduct, idConv).Error; err != nil {
+        return c.JSON(http.StatusNotFound, map[string]interface{}{
+            "status":  "failed",
+            "message": "product not found",
+        })
+    }
+
+    // Perbarui data produk
+    existingProduct.ProductName = updatedProduct.ProductName
+    existingProduct.Description = updatedProduct.Description
+    existingProduct.Price = updatedProduct.Price
+    existingProduct.Stock = updatedProduct.Stock
+    existingProduct.Type = updatedProduct.Type
+
+    // Simpan perubahan ke dalam database
+    if err := DB.Save(&existingProduct).Error; err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error updating product: " + err.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "product updated successfully",
+    })
+}
+
+func DeleteProductController(c echo.Context) error {
+    // Ambil ID dari parameter URL
+    id := c.Param("id")
+    idConv, errConv := strconv.Atoi(id)
+    if errConv != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error convert id: " + errConv.Error(),
+        })
+    }
+
+    // Hapus produk dari database berdasarkan ID
+    if err := DB.Delete(&Product{}, idConv).Error; err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error deleting product: " + err.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "product deleted successfully",
+    })
+}
