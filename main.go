@@ -77,6 +77,7 @@ func main() {
 	e.GET("/users", GetAllUsersController)
 	e.POST("/users", AddUserController)
 	e.DELETE("/users/:id", DeleteUserByIdController)
+	e.PUT("/users/:id", UpdateUserController)
 
 	/*
 		TODO:
@@ -158,3 +159,55 @@ func DeleteUserByIdController(c echo.Context) error {
 	})
 
 }
+
+func UpdateUserController(c echo.Context) error {
+	// Ambil ID dari parameter URL
+	id := c.Param("id")
+	idConv, errConv := strconv.Atoi(id)
+	if errConv != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"status":  "failed",
+			"message": "error convert id: " + errConv.Error(),
+		})
+	}
+
+	// Ambil data pengguna yang akan diperbarui dari body permintaan
+	var updatedUser User
+	if err := c.Bind(&updatedUser); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+			"status":  "failed",
+			"message": "error bind data: " + err.Error(),
+		})
+	}
+
+	// Cari pengguna berdasarkan ID
+	var existingUser User
+	if err := DB.First(&existingUser, idConv).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]interface{}{
+			"status":  "failed",
+			"message": "user not found",
+		})
+	}
+
+	// Perbarui data pengguna
+	existingUser.Name = updatedUser.Name
+	existingUser.Email = updatedUser.Email
+	existingUser.Password = updatedUser.Password
+	existingUser.Phone = updatedUser.Phone
+	existingUser.Address = updatedUser.Address
+	existingUser.StoreName = updatedUser.StoreName
+
+	// Simpan perubahan ke dalam database
+	if err := DB.Save(&existingUser).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			"status":  "failed",
+			"message": "error updating user: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "user updated successfully",
+	})
+}
+
