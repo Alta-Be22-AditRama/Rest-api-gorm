@@ -83,12 +83,11 @@ func main() {
 	e.POST("/products", AddProductController)
 	e.DELETE("/products/:id", DeleteProductController)
 	e.PUT("/products/:id", UpdateProductController)
-	/*
-		TODO:
-		Update user by id
-		CRUD product
-		CRUD favorite
-	*/
+
+	e.GET("/favorites", GetAllFavoritesController)
+	e.POST("/favorites", AddFavoriteController)
+	e.DELETE("/favorites/:id", DeleteFavoriteController)
+	e.PUT("/favorites/:id", UpdateFavoriteController)
 
 	// start server and port
 	e.Logger.Fatal(e.Start(":8080"))
@@ -327,5 +326,117 @@ func DeleteProductController(c echo.Context) error {
     return c.JSON(http.StatusOK, map[string]interface{}{
         "status":  "success",
         "message": "product deleted successfully",
+    })
+}
+
+func AddFavoriteController(c echo.Context) error {
+    newFavorite := Favorite{}
+    errBind := c.Bind(&newFavorite)
+    if errBind != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error bind data: " + errBind.Error(),
+        })
+    }
+    // Simpan data favorite ke DB
+    tx := DB.Create(&newFavorite)
+    if tx.Error != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error insert data " + tx.Error.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusCreated, map[string]interface{}{
+        "status":  "success",
+        "message": "success add favorite",
+    })
+}
+
+func GetAllFavoritesController(c echo.Context) error {
+    var allFavorites []Favorite
+    tx := DB.Find(&allFavorites)
+    if tx.Error != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error read data",
+        })
+    }
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "success read data",
+        "results": allFavorites,
+    })
+}
+
+func UpdateFavoriteController(c echo.Context) error {
+    // Ambil ID dari parameter URL
+    id := c.Param("id")
+    idConv, errConv := strconv.Atoi(id)
+    if errConv != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error convert id: " + errConv.Error(),
+        })
+    }
+
+    // Ambil data favorite yang akan diperbarui dari body permintaan
+    var updatedFavorite Favorite
+    if err := c.Bind(&updatedFavorite); err != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error bind data: " + err.Error(),
+        })
+    }
+
+    // Cari favorite berdasarkan ID
+    var existingFavorite Favorite
+    if err := DB.First(&existingFavorite, idConv).Error; err != nil {
+        return c.JSON(http.StatusNotFound, map[string]interface{}{
+            "status":  "failed",
+            "message": "favorite not found",
+        })
+    }
+
+    // Perbarui data favorite
+    existingFavorite.UserID = updatedFavorite.UserID
+    existingFavorite.ProductID = updatedFavorite.ProductID
+
+    // Simpan perubahan ke dalam database
+    if err := DB.Save(&existingFavorite).Error; err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error updating favorite: " + err.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "favorite updated successfully",
+    })
+}
+
+func DeleteFavoriteController(c echo.Context) error {
+    // Ambil ID dari parameter URL
+    id := c.Param("id")
+    idConv, errConv := strconv.Atoi(id)
+    if errConv != nil {
+        return c.JSON(http.StatusBadRequest, map[string]interface{}{
+            "status":  "failed",
+            "message": "error convert id: " + errConv.Error(),
+        })
+    }
+
+    // Hapus favorite dari database berdasarkan ID
+    if err := DB.Delete(&Favorite{}, idConv).Error; err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+            "status":  "failed",
+            "message": "error deleting favorite: " + err.Error(),
+        })
+    }
+
+    return c.JSON(http.StatusOK, map[string]interface{}{
+        "status":  "success",
+        "message": "favorite deleted successfully",
     })
 }
