@@ -26,29 +26,30 @@ type User struct {
 	Phone     string    `json:"phone" form:"phone"`
 	Address   string    `json:"address" form:"address"`
 	StoreName string    `json:"store_name" form:"store_name"`
-	Products  []Product `gorm:"foreignKey:UserID;references:ID"`
-	Favorites []Favorite
-
+	Products  []Product `gorm:"foreignKey:UserID;references:ID" json:"products" form:"products"`
+	Favorites []Favorite `json:"favorites" form:"favorites"`
 }
+
 type Product struct {
 	ID          uint `gorm:"primarykey"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 	UserID      uint
-	ProductName string
-	Description string
-	Price       float64
-	Stock       int
-	Type        string
-	Favorites   []Favorite
+	ProductName string    `json:"product_name" form:"product_name"`
+	Description string    `json:"description" form:"description"`
+	Price       float64   `json:"price" form:"price"`
+	Stock       int       `json:"stock" form:"stock"`
+	Type        string    `json:"type" form:"type"`
+	Favorites   []Favorite `json:"favorites" form:"favorites"`
 }
 
 type Favorite struct {
 	gorm.Model
-	UserID    uint 
-	ProductID uint
+	UserID    uint `json:"user_id" form:"user_id"`
+	ProductID uint `json:"product_id" form:"product_id"`
 }
+
 
 func InitDB() {
 	var err error
